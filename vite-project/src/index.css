@@ -1,1 +1,133 @@
 @import "tailwindcss";
+
+/* Vazirmatn — a modern Persian/Arabic typeface with variable weights 100–900,
+   self-hosted from npm so the site never depends on a font CDN at runtime.
+   The package ships unicode-range subsets, so a Persian page downloads the
+   Arabic subset (~46 KB) plus the Latin one for numbers — not all three. */
+@import "@fontsource-variable/vazirmatn";
+
+@theme {
+  --font-sans:
+    "Vazirmatn Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* Headline gradient: hot magenta -> muted dusk -> deep plum.
+     Registered as theme colours so Tailwind generates from-/via-/to- utilities
+     from them and the three hex values live in exactly one place. */
+  --color-brand-bloom: #b2a5ff;
+  --color-brand-dusk: #0ad6ff;
+  --color-brand-plum: #ff60d4;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Persian is a connected script: tracking (letter-spacing) pulls the joins
+     apart and makes the text look broken, so headings stay at normal tracking
+     and get their emphasis from weight instead. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: normal;
+  }
+
+  /* Persian reads best with a little more air between the lines. Headings and
+     small UI chrome set their own line-height, so this only lifts body copy. */
+  body {
+    line-height: 1.75;
+  }
+}
+
+/* ── Lightbox: making a 16:9 clip watchable on a portrait phone ─────────
+   A landscape video on a portrait screen can only ever be as wide as the
+   phone, which is why it looked tiny. In rotate mode the whole panel is
+   turned 90° and sized to the swapped viewport, so the video gets to use the
+   phone's HEIGHT as its width — roughly 2.7x the picture area.
+   Physically turning the phone to landscape makes this query stop matching,
+   and the panel falls back to its normal full-screen layout, so the video
+   comes out the same size either way.
+
+   These rules are deliberately UNLAYERED. Tailwind v4 puts its utilities in
+   cascade layers and unlayered CSS outranks every layer, which is what lets
+   position/width/height here override the `relative`, `h-full` and `w-full`
+   utilities sitting on the same element. */
+.lightbox-rotate-toggle {
+  display: none;
+}
+
+@media (orientation: portrait) and (max-width: 640px) {
+  .lightbox-rotated {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vh;
+    width: 100dvh; /* modern browsers: ignores the collapsing URL bar */
+    height: 100vw;
+    transform: translate(-50%, -50%) rotate(90deg);
+    border-radius: 0;
+  }
+
+  /* There is room to spare once the panel is sideways, so bring back the
+     prev/next arrows that are hidden on small screens. */
+  .lightbox-rotated .lightbox-nav {
+    display: flex;
+  }
+
+  /* The rotate toggle only means anything on a portrait phone. */
+  .lightbox-rotate-toggle {
+    display: inline-flex;
+  }
+}
+
+/* ── Entrance animations ────────────────────────────────────────────────
+   Unlayered for the same reason as the lightbox rules above: Tailwind v4
+   keeps its utilities in cascade layers and unlayered CSS outranks every
+   layer, so these can hold their own against `animate-bounce` and friends.
+
+   Note on `translate`: Tailwind v4 implements translate-y-* with the
+   standalone CSS `translate` property rather than `transform`, so anything
+   that has to transition or cancel it must name both. */
+@keyframes hero-rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* `both` is what makes the stagger work: it holds the invisible `from` state
+   through the animation-delay, so nothing flashes on screen before its turn. */
+.rise-in {
+  animation: hero-rise-in 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Viewport reveals are switched on from JS (see src/Reveal.jsx); the
+   transition itself lives here so the reduced-motion rule below can turn the
+   whole thing off in one place. */
+.reveal-item {
+  transition-property: opacity, transform, translate;
+  transition-duration: 0.7s;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-in,
+  .reveal-item {
+    animation: none;
+    transition: none;
+    opacity: 1;
+    /* `translate`, not `transform`: that is the property Tailwind v4's
+       translate-y-8 actually sets, so it is the one that has to be cancelled.
+       (Writing `transform: none` alongside it gets minified into
+       `transform: translate(0)`, which leaves the offset in place.) */
+    translate: none;
+  }
+}

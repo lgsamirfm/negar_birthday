@@ -1,16 +1,19 @@
 import { useState } from "react";
 import Hero from "./Hero";
+import Gallery from "./Gallery";
+import Reveal from "./Reveal";
+import { navigate, useHashRoute } from "./useHashRoute";
 
 // A clean sub-component that gracefully handles profile images or letter fallbacks
 function UserAvatar({ src, user, gradient }) {
   const [hasError, setHasError] = useState(!src);
 
   return (
-    <div className={`w-11 h-11 bg-gradient-to-tr ${gradient} rounded-full p-[2px] shadow-sm group-hover:scale-105 transition-transform duration-300 flex items-center justify-center overflow-hidden flex-shrink-0`}>
+    <div className={`w-15 h-15 bg-gradient-to-tr ${gradient} rounded-full p-[2px] shadow-sm group-hover:scale-105 transition-transform duration-300 flex items-center justify-center overflow-hidden flex-shrink-0`}>
       {!hasError ? (
         <img 
           src={src} 
-          alt={`${user}'s avatar`}
+          alt={`آواتار ${user}`}
           className="w-full h-full object-cover rounded-full bg-white"
           onError={() => setHasError(true)}
         />
@@ -23,7 +26,40 @@ function UserAvatar({ src, user, gradient }) {
   );
 }
 
+// End-of-page call to action leading to the video gallery
+function GalleryCta() {
+  return (
+    <section className="mt-12 flex flex-col items-center gap-4 rounded-3xl border border-rose-100/60 bg-white/70 p-8 text-center shadow-[0_4px_20px_-4px_rgba(244,63,94,0.06)] backdrop-blur-md transition-all duration-300 hover:shadow-[0_10px_30px_-4px_rgba(244,63,94,0.12)] sm:p-10">
+      {/* <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-600 shadow-sm">
+        گالری 🎬
+      </span> */}
+
+      <h2 className="bg-gradient-to-r from-purple-600 via-rose-500 to-amber-500 bg-clip-text pb-1 text-2xl font-black text-transparent drop-shadow-sm sm:text-3xl">
+       اینارم ببین
+      </h2>
+
+      <p className="max-w-md text-sm font-medium leading-loose text-gray-500 sm:text-base">
+       هرکی تا آخر ندید خره
+      </p>
+
+      <button
+        type="button"
+        onClick={() => navigate("gallery")}
+        className="group mt-2 inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-purple-600 via-rose-500 to-amber-500 px-7 py-3.5 text-sm font-bold text-white shadow-[0_10px_30px_-8px_rgba(244,63,94,0.5)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-8px_rgba(244,63,94,0.65)] active:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2"
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25 pl-0.5 transition-transform duration-300 group-hover:scale-110">
+          <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 5.14v13.72a1 1 0 001.52.85l11.14-6.86a1 1 0 000-1.7L9.52 4.29A1 1 0 008 5.14z" />
+          </svg>
+        </span>
+        <span>فیلما رو ببین</span>
+      </button>
+    </section>
+  );
+}
+
 function App() {
+  const route = useHashRoute();
   // Birthday wishes translated to elegant Persian equivalents
   const birthdayWishes = [
     {
@@ -35,17 +71,19 @@ function App() {
     },
     { 
       id: 2, 
-      user: "Alex_M", 
-      profileImage: "https://unsplash.com",
+      user: "Naku", 
+      profileImage: "naku.jpg",
       avatarGradient: "from-emerald-400 to-teal-500", 
-      text: "تولدت مبارک نگار جان! آرزو می‌کنم روزت پر از شادی و امسالت یکی از بهترین سال‌های زندگیت باشه. همیشه شاد و درخشان بمانی." 
+      text: "میو نگار تولدت مبارکهههه ✨🥳 انشاالله همه ارزو هات براورده بشه به این مناسبت و خوشحال باشیییی" 
     },
     { 
       id: 3, 
-      user: "Sarah.K", 
-      profileImage: "https://unsplash.com",
+      user: "𝐓𝐡𝐞𝐅𝐫𝐞𝐚𝐤.", 
+      profileImage: "thefreak.jpg",
       avatarGradient: "from-amber-400 to-orange-500", 
-      text: "امیدوارم این سال تو رو به تمام آرزوهای قشنگت نزدیک‌تر کنه. تو لایق بهترین‌های این دنیا هستی، تولدت مبارک ستاره پرفروغ!" 
+      text: `زادروزت خجسته دختر ناناز 🤍 
+      امیدوارم سال خوشگل‌تری داشته باشی`
+
     },
     { 
       id: 4, 
@@ -70,44 +108,60 @@ function App() {
     }
   ];
 
+  // Hash-based view switch: "#/gallery" renders the video gallery page
+  if (route === "gallery") {
+    return <Gallery />;
+  }
+
   return (
-    // "rtl" class forces text alignment and block direction right-to-left for Persian content
-    <div className="min-h-screen bg-gradient-to-b from-[#FFFDF9] via-[#FFF5F5] to-[#FFF0FA] antialiased selection:bg-rose-200 selection:text-rose-900 rtl">
+    // dir="rtl" puts the whole page in right-to-left flow for the Persian copy
+    <div
+      dir="rtl"
+      className="min-h-screen bg-gradient-to-b from-[#FFFDF9] via-[#FFF5F5] to-[#FFF0FA] antialiased selection:bg-rose-200 selection:text-rose-900"
+    >
       <Hero />
 
       <div className="max-w-4xl mx-auto px-4 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {birthdayWishes.map((item) => (
-            <div 
-              key={item.id} 
-              className="group p-6 bg-white/70 backdrop-blur-md border border-rose-100/50 flex flex-col justify-between rounded-3xl shadow-[0_4px_20px_-4px_rgba(244,63,94,0.06)] hover:shadow-[0_10px_30px_-4px_rgba(244,63,94,0.12)] hover:-translate-y-0.5 transition-all duration-300 ease-out text-right"
-            >
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <UserAvatar 
-                    src={item.profileImage} 
-                    user={item.user} 
-                    gradient={item.avatarGradient} 
-                  />
-                  <div>
-                    <p className="text-gray-800 font-semibold text-sm tracking-tight">{item.user}</p>
+          {birthdayWishes.map((item, index) => (
+            // <Reveal> becomes the grid item, so the card needs h-full to keep
+            // stretching to its row-mate's height the way it did before.
+            <Reveal key={item.id} delay={Math.min(index, 5) * 90}>
+              <div 
+                className="group h-full p-6 bg-white/70 backdrop-blur-md border border-rose-100/50 flex flex-col justify-between rounded-3xl shadow-[0_4px_20px_-4px_rgba(244,63,94,0.06)] hover:shadow-[0_10px_30px_-4px_rgba(244,63,94,0.12)] hover:-translate-y-0.5 transition-all duration-300 ease-out text-right"
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-3">
+                    <UserAvatar 
+                      src={item.profileImage} 
+                      user={item.user} 
+                      gradient={item.avatarGradient} 
+                    />
+                    <div>
+                      <p className="text-gray-800 font-semibold text-base tracking-tight">{item.user}</p>
                    
+                    </div>
                   </div>
+
+                  {/* Fixed line height for smoother Persian font rendering */}
+                  <p className="text-gray-600 whitespace-pre-line text-base leading-loose font-normal">
+                    {item.text}
+                  </p>
                 </div>
 
-                {/* Fixed line height for smoother Persian font rendering */}
-                <p className="text-gray-600 text-base leading-loose font-normal">
-                  {item.text}
-                </p>
+                {/* Flex direction adjusted so the heart emojis align nicely on the left border side */}
+                <div className="mt-4 pt-3 border-t border-rose-50/50 flex justify-end ltr">
+                  <span className="text-rose-300 group-hover:text-rose-400 text-xs transition-colors duration-200">✨ ❤️</span>
+                </div>
               </div>
-
-              {/* Flex direction adjusted so the heart emojis align nicely on the left border side */}
-              <div className="mt-4 pt-3 border-t border-rose-50/50 flex justify-end ltr">
-                <span className="text-rose-300 group-hover:text-rose-400 text-xs transition-colors duration-200">✨ ❤️</span>
-              </div>
-            </div>
+            </Reveal>
           ))}
         </div>
+
+        {/* End of the page: doorway to the video gallery */}
+        <Reveal delay={80}>
+          <GalleryCta />
+        </Reveal>
       </div>
     </div>
   );
