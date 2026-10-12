@@ -2,8 +2,8 @@ import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useRef, u
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Center, Clone, useGLTF } from "@react-three/drei";
 import { heroFit, heroModels, heroSceneDebug } from "./heroModels";
-import CandleFlames from "./candleFlames";
-import { applyMeterLevel, createCandleState, relightCandles } from "./candleState";
+import CandleFlames from "./CandleFlames";
+import { blowOutAllCandles, createCandleState, relightCandles } from "./candleState";
 import { useBlowDetection } from "./useBlowDetection";
 import { micIsAvailable } from "./candleConfig";
 
@@ -338,17 +338,13 @@ function HeroScene({ candleState, onCandlesOut }) {
  *
  * Sits over the canvas rather than in the flow, so it never changes the hero's
  * layout. The container is pointer-events-none and only the buttons opt back
- * in, so the canvas underneath stays inert.
- *
- * Blowing into the microphone is the only way to put the candles out — there
- * is no tap-the-flame fallback and no button that fakes a blow — and how hard
- * she blows decides how many of them go. When the mic is unavailable that is
- * said plainly instead of being worked around.
+ * in, which keeps the rest of the canvas tappable: tapping a flame is the
+ * fallback for when there is no microphone.
  * ------------------------------------------------------------------ */
 const BUTTON_PRIMARY =
   "inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 via-rose-500 to-amber-500 px-6 py-3 text-sm font-bold text-white shadow-[0_10px_30px_-8px_rgba(244,63,94,0.5)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-8px_rgba(244,63,94,0.65)] active:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300";
 
-function CandleControls({ micStatus, candlesOut, blowing, hasMic, meterRef, onStartMic, onRelight }) {
+function CandleControls({ micStatus, candlesOut, blowing, hasMic, meterRef, holdRef, onStartMic, onRelight }) {
   const listening = micStatus === "listening";
   // No microphone at all, rather than one she declined: retrying cannot help,
   // so there is no button to offer.
@@ -375,19 +371,32 @@ function CandleControls({ micStatus, candlesOut, blowing, hasMic, meterRef, onSt
           <>
             {listening && (
               <>
-                {/* How hard she is blowing right now — and therefore how many
-                    candles are out, since the bar and the candles read the same
-                    number. Driven straight from the audio loop into this node's
-                    style, because sixty setState calls a second would re-render
-                    the hero and the three.js scene with it, for a progress bar.
-                    origin-right so it fills along the reading direction in this
-                    RTL layout. */}
-                <div className="h-2.5 w-48 overflow-hidden rounded-full bg-white/75 ring-1 ring-rose-100 backdrop-blur-sm">
-                  <div
-                    ref={meterRef}
-                    className="h-full w-full origin-right rounded-full bg-gradient-to-l from-amber-400 via-rose-500 to-purple-500"
-                    style={{ transform: "scaleX(0)" }}
-                  />
+                {/* Both bars are driven straight from the audio loop into
+                    these nodes' styles. Sixty setState calls a second would
+                    re-render the hero and the three.js scene with it, for two
+                    progress bars. origin-right so they fill along the reading
+                    direction in this RTL layout. */}
+                <div className="flex flex-col items-center gap-1.5">
+                  {/* How hard she is blowing right now */}
+                  <div className="h-2.5 w-48 overflow-hidden rounded-full bg-white/75 ring-1 ring-rose-100 backdrop-blur-sm">
+                    <div
+                      ref={meterRef}
+                      className="h-full w-full origin-right rounded-full bg-gradient-to-l from-amber-400 via-rose-500 to-purple-500"
+                      style={{ transform: "scaleX(0)" }}
+                    />
+                  </div>
+
+                  {/* How far through the two seconds she is. Without this the
+                      requirement reads as broken: the top bar is full and
+                      nothing happens for what feels like ages. Delete this div
+                      if you would rather she had no countdown. */}
+                  <div className="h-1 w-48 overflow-hidden rounded-full bg-white/55">
+                    <div
+                      ref={holdRef}
+                      className="h-full w-full origin-right rounded-full bg-rose-400"
+                      style={{ transform: "scaleX(0)" }}
+                    />
+                  </div>
                 </div>
 
                 <p className="text-xs font-bold text-rose-400">فوت کن! 💨</p>
@@ -413,9 +422,8 @@ function CandleControls({ micStatus, candlesOut, blowing, hasMic, meterRef, onSt
                     تلاش کن. از تنظیمات سایت توی مرورگر هم می‌شه فعالش کرد.
                   </p>
                 ) : (
-                  <p className="max-w-xs text-[11px] font-medium leading-relaxed text-gray-400">
-                    هرچی محکم‌تر فوت کنی، شمع‌های بیشتری خاموش می‌شن — تا آخرش
-                    ادامه بده تا همه‌شون برن 💨
+                  <p className="text-[11px] font-medium text-gray-400">
+                    نفس عمیق بکش و دو ثانیه فوت کن 💨
                   </p>
                 )}
               </>
@@ -440,41 +448,38 @@ function Hero() {
   // props do, which is how this reaches CandleFlames.
   const [candleState] = useState(() => createCandleState());
   const [candlesOut, setCandlesOut] = useState(false);
-  // True between the last candle being claimed and its flame finishing, so the
-  // button does not come back for the third of a second the fade takes.
+  // True between the blow landing and the last flame finishing, so the button
+  // does not come back for the second the cascade takes.
   const [blowing, setBlowing] = useState(false);
   const [hasMic] = useState(() => micIsAvailable());
   const meterRef = useRef(null);
+  const holdRef = useRef(null);
 
   // Fired from inside useFrame the moment the last flame goes out, so the
-  // celebration waits for the fades to finish rather than for the blow.
+  // celebration waits for the cascade to finish rather than for the blow.
   const handleExtinguished = useCallback(() => {
     setCandlesOut(true);
     setBlowing(false);
   }, []);
 
-  const handleLevel = useCallback(
-    (level) => {
-      // Written straight to the DOM node: sixty setState calls a second would
-      // re-render the hero and the three.js scene with it, for a progress bar.
-      // origin-right so it fills along the reading direction in this RTL layout.
-      const bar = meterRef.current;
-      if (bar) bar.style.transform = `scaleX(${clamp(level, 0, 1).toFixed(3)})`;
+    const handleLevel = useCallback((level, hold) => {
+    const scale = (value) => `scaleX(${Math.min(1, Math.max(0, value)).toFixed(3)})`;
+    const bar = meterRef.current;
+    if (bar) bar.style.transform = scale(level);
+    const holdBar = holdRef.current;
+    if (holdBar) holdBar.style.transform = scale(hold);
+  }, []);
 
-      // The same number decides how many candles are out — half a bar is half
-      // of them, and they come back as it falls. Returning true is what tells
-      // the hook to let go of the microphone; that happens once, on the frame
-      // the last candle is claimed.
-      if (applyMeterLevel(candleState, level)) {
-        setBlowing(true);
-        return true;
-      }
-      return false;
-    },
-    [candleState],
-  );
+  // The hook releases the microphone itself when a blow lands, so there is
+  // nothing to stop here — which also keeps this from depending on a function
+  // declared below it.
+  const handleBlow = useCallback(() => {
+    blowOutAllCandles(candleState);
+    setBlowing(true);
+  }, [candleState]);
 
   const { status: micStatus, start: startMic } = useBlowDetection({
+    onBlow: handleBlow,
     onLevel: handleLevel,
   });
 
@@ -484,6 +489,7 @@ function Hero() {
     setBlowing(false);
   }, [candleState]);
 
+ 
   return (
     <div className="relative flex p-6 flex-col items-center justify-between min-h-screen text-center overflow-hidden">
       
@@ -496,21 +502,21 @@ function Hero() {
           read as one motion rather than a slideshow. */}
       <div className="relative z-10 max-w-xl mx-auto flex flex-col items-center gap-3 pt-6 pb-2">
         <span className="rise-in [animation-delay:80ms] px-3 py-1 bg-rose-100 text-rose-600 rounded-full text-xs font-bold shadow-sm">
-         تولدددددددددددددد
+          جشن تولد 🎉
         </span>
-        <h1 className="rise-in [animation-delay:200ms] text-4xl sm:text-5xl font-black bg-gradient-to-r from-purple-600 via-rose-500 to-amber-500 bg-clip-text text-transparent drop-shadow-sm pb-1">
-          تولدت مبارک نگاررررر
+        <h1 className="rise-in [animation-delay:200ms] text-4xl sm:text-5xl font-black bg-gradient-to-r from-brand-bloom via-brand-dusk to-brand-plum bg-clip-text text-transparent drop-shadow-sm pb-1">
+          تولدت مبارک، نگار!
         </h1>
-        {/* <p className="rise-in [animation-delay:320ms] text-gray-500 font-medium text-sm sm:text-base max-w-md leading-loose">
+        <p className="rise-in [animation-delay:320ms] text-gray-500 font-medium text-sm sm:text-base max-w-md leading-loose">
           یک گوشه‌ی دنج دیجیتال، فقط برای جشن گرفتن تو.
-        </p> */}
+        </p>
       </div>
 
       {/* 2. Interactive 3D Canvas — renders every model in src/heroModels.js */}
       <div className="w-full flex-1 relative min-h-[350px] flex items-center justify-center">
         <div className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing">
           <Canvas camera={{ position: [0, 0.5, 1], fov: 45 }}>
-            <ambientLight intensity={1.2} />
+            <ambientLight intensity={0.35} />
             <directionalLight position={[5, 10, 5]} intensity={1.5} />
             <directionalLight position={[-5, 5, -5]} intensity={0.6} color="#c084fc" />
             <pointLight position={[0, -3, 2]} intensity={0.8} />
@@ -521,14 +527,17 @@ function Hero() {
 
         {/* Overlaid on the canvas, not in the flow, so it never nudges the
             hero's layout. Its container ignores pointer events and only the
-            buttons opt back in, which leaves the canvas underneath inert. */}
+            buttons opt back in, which leaves the rest of the canvas clickable
+            — tapping a flame is the fallback when there is no microphone. */}
         <CandleControls
           micStatus={micStatus}
           candlesOut={candlesOut}
           blowing={blowing}
           hasMic={hasMic}
+          holdRef={holdRef}
           meterRef={meterRef}
           onStartMic={startMic}
+          
           onRelight={handleRelight}
         />
       </div>
@@ -541,7 +550,7 @@ function Hero() {
       <div className="relative z-10 mb-2 rise-in [animation-delay:1000ms]">
         <div className="flex flex-col items-center gap-2 animate-bounce">
           <p className="text-xs font-bold text-rose-400">
-            پیام‌هامونو بخون
+            پیام‌هامونو بخون!
           </p>
           <svg 
             className="w-5 h-5 text-rose-400" 

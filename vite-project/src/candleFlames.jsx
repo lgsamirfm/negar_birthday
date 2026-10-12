@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { candleConfig as cfg } from "./candleConfig";
-import { ensureCandleStateSize, outProgressAt } from "./candleState";
+import { ensureCandleStateSize} from "./candleState";
 import { heroSceneDebug } from "./heroModels";
 
 /* ------------------------------------------------------------------ *
@@ -38,9 +38,8 @@ function discoverCandles(scene, pattern) {
     });
   });
 
-  // The cake turns, and this order is the order the meter picks the candles off
-  // in. Sorting by angle round the ring makes them go out travelling round the
-  // cake as she blows harder, instead of jumping about at random.
+  // The cake turns, so ordering the cascade by angle around the ring makes it
+  // travel round the cake instead of jumping about at random.
   found.sort(
     (a, b) =>
       Math.atan2(a.position.z, a.position.x) - Math.atan2(b.position.z, b.position.x),
@@ -99,6 +98,46 @@ function sizeAt(elapsed, phase) {
     Math.sin(elapsed * cfg.flickerSpeed * 1.31 + phase * 2.1) * 0.6 +
     Math.sin(elapsed * cfg.flickerSecondSpeed * 0.83 + phase) * 0.4;
   return 1 + noise * cfg.flickerScaleAmount;
+}
+
+/**
+ * How far through going out one candle is: 0 = burning, 1 = out.
+ *
+ * Two ways in. A blow starts a cascade where each candle follows the last
+ * after cascadeStepMs; a tap takes just that one candle out on its own clock.
+ * Whichever started later wins, so tapping after a blow still works.
+ */
+/**
+ * How far through going out one candle is: 0 = burning, 1 = out.
+ *
+ * Two ways in: a blow starts a cascade where each candle follows the last
+ * after cascadeStepMs, and a tap takes just that one candle out on its own
+ * clock.
+ *
+ * Each trigger is timed independently and the results are MAXed, which makes
+ * the progress monotonic — it can only ever go up until relightCandles resets
+ * it. Picking the latest trigger instead, as this originally did, meant a tap
+ * on a candle that was already out restarted its fade from zero, and zero is
+ * "fully lit": the flame popped back into existence for 340ms and then died
+ * again. The max also gives the useful behaviour for free that a tap during
+ * the cascade takes effect immediately rather than waiting its turn.
+ */
+/**
+ * How far through going out one candle is: 0 = burning, 1 = out.
+ *
+ * Blowing into the microphone is the only trigger. Each candle follows the
+ * last after cascadeStepMs, so the cascade travels round the ring, and the
+ * whole thing is monotonic within a cycle: blowOutAllCandles refuses to move
+ * blowStart unless every candle is lit, so progress can never run backwards
+ * and flash a dead flame back to life. relightCandles is the only reset.
+ */
+function outProgressAt(state, index, now) {
+  if (state.blowStart < 0) return 0;
+
+  const started = state.blowStart + index * cfg.cascadeStepMs;
+  if (now < started) return 0;
+
+  return Math.min(1, (now - started) / cfg.flameFadeMs);
 }
 
 /**
@@ -164,16 +203,12 @@ function updateCandles(rig, state, elapsed, now, reducedMotion, lightRatio, onEx
 
     if (out >= 1 && !(state.lastOutAt[i] > 0)) state.lastOutAt[i] = now;
     if (out < 1) state.lastOutAt[i] = -1;
-
-    // Read back by the mutators in candleState.js, so that reversing a candle
-    // half way through its fade continues from here rather than from the ends.
-    state.progress[i] = out;
+        // Recorded so the mutators in candleState.js can refuse to restart a
+    // candle that has already finished going out.
+    if (out >= 1) state.out[i] = true;
   }
 
-  // Only a COMPLETED blow is worth celebrating. Until the level has taken the
-  // last candle, the candles are hers to lose again by letting the bar fall,
-  // and firing the finale on a half-blown cake would be wrong.
-  if (state.locked && allOut && !state.extinguishedReported && rig.candles.length > 0) {
+  if (allOut && !state.extinguishedReported && rig.candles.length > 0) {
     state.extinguishedReported = true;
     if (onExtinguished) onExtinguished();
   }
@@ -194,8 +229,8 @@ const prefersReducedMotion = () =>
  *
  * It is also why the hero's tuned framing does not move. <Center> recentres on
  * its subtree's bounding box, and the model's own bbox already spans y 0 to
- * 0.06 with the flame tips at 0.054 and a radius of 0.03. The flames and the
- * smoke all stay inside that box, so the measured bbox — and therefore the
+ * 0.06 with the flame tips at 0.054 and a radius of 0.03. Flames, tap targets
+ * and smoke all stay inside that box, so the measured bbox — and therefore the
  * centring offset — is exactly what it was before.
  * ------------------------------------------------------------------ */
 function CandleFlames({ scene, state, onExtinguished, stageScale = 1 }) {
@@ -328,6 +363,7 @@ function CandleFlames({ scene, state, onExtinguished, stageScale = 1 }) {
 
   if (candles.length === 0) return null;
 
+
   return (
     <group>
       {candles.map((candle, index) => {
@@ -336,8 +372,8 @@ function CandleFlames({ scene, state, onExtinguished, stageScale = 1 }) {
 
         return (
           // Outer group holds the position only. Everything that must NOT be
-          // squashed by the pinch-out animation lives here — the light and the
-          // smoke — and only the inner flame group scales.
+          // squashed by the pinch-out animation lives here, and only the inner
+          // flame group scales.
           <group key={candle.name} position={position}>
             <group
               ref={(element) => {
@@ -404,6 +440,7 @@ function CandleFlames({ scene, state, onExtinguished, stageScale = 1 }) {
             >
               <sphereGeometry args={[cfg.flameRadius * 1.2, 8, 8]} />
             </mesh>
+
           </group>
         );
       })}
