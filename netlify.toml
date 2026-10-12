@@ -1,0 +1,55 @@
+# Netlify build configuration for the birthday site.
+#
+# The Vite app lives in vite-project/, not at the repository root, so `base` is
+# the line that makes everything else line up: the build command runs from that
+# directory, and `publish` is resolved relative to it (not to the repo root).
+#
+# Leave "Base directory" EMPTY in the Netlify UI — this file sets it. If you
+# also fill in the UI field, Netlify will look for netlify.toml inside
+# vite-project/ instead and never read this one.
+
+[build]
+  base = "vite-project"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Vite 8 requires Node ^20.19.0 or >=22.12.0 (see vite-project/package.json's
+  # dependency tree). Netlify's own default can be older, and building on an old
+  # Node fails with a confusing syntax error deep inside Vite rather than a
+  # clear "wrong Node version" message — so pin it explicitly.
+  # vite-project/.nvmrc says the same thing for local tooling.
+  NODE_VERSION = "22"
+
+  # npm ci (which Netlify runs when package-lock.json is present) fails if the
+  # lockfile and package.json disagree. Keeping this off means a genuine
+  # mismatch surfaces as an error instead of silently installing something else.
+  NPM_FLAGS = ""
+
+# The app routes with the URL hash (#/gallery), so every request that actually
+# reaches the server is for "/" and no rewrite is strictly required — that is
+# why the site works on a plain static host with zero configuration.
+#
+# This rule is here as insurance: it turns any unknown path into the app shell
+# instead of a 404, which matters if the router is ever switched to real paths.
+# Note that a missing /videos/3.mp4 will then come back as 200 text/html rather
+# than 404; src/Gallery.jsx already treats an HTML answer as "file not there",
+# so the gallery's missing-file detection keeps working either way.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Video files are the one thing here worth caching deliberately. They are large,
+# they never change under the same filename, and the browser is already allowed
+# to range-request them for seeking.
+[[headers]]
+  for = "/videos/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# The 3D models are the same story: ~1.7 MB each and fetched on every load.
+[[headers]]
+  for = "/*.glb"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

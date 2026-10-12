@@ -101,9 +101,13 @@ export const candleConfig = {
 
   /* ---------------------------------------------------------------- *
    * Blowing out
+   *
+   * There is no stagger between candles any more: the meter picks them off one
+   * at a time as it rises, so the "cascade" is her own breath. These two are
+   * how long a single flame takes to change its mind in each direction.
    * ---------------------------------------------------------------- */
-  cascadeStepMs: 90, // gap between each candle going out
   flameFadeMs: 340, // how long one flame takes to shrink away
+  relightMs: 260, // …and to catch again when the bar falls back
   smokeMs: 620, // a faint grey wisp rising off the wick afterwards
   smokeRise: 0.004, // model units the wisp travels
   smokeOpacity: 0.28,
@@ -111,9 +115,9 @@ export const candleConfig = {
   /* ---------------------------------------------------------------- *
    * Microphone — blow detection
    *
-   * The whole rule: the meter is above half for more than two seconds, and
-   * the candles go out. No room calibration, no noise floor, nothing to wait
-   * for, no status message about it.
+   * The whole rule: the meter IS the candles. Half a bar means half of them
+   * are out; a full bar means all of them are, and that is the moment it stops
+   * being reversible. Let the bar fall before then and they come back.
    *
    * The meter is simply the incoming loudness divided by meterFullScaleRms,
    * so that ONE number is all there is to tune:
@@ -121,6 +125,13 @@ export const candleConfig = {
    *   meter is full when she just talks -> raise it (try 0.22)
    * Mic gain varies a lot between devices, and autoGainControl is off (see
    * below), so expect to nudge this once on the real hardware.
+   *
+   * ⚠️ Because the mapping is direct, anything loud enough to move the bar
+   * moves the candles: at the default 0.15, ordinary talking (RMS ~0.05) sits
+   * around a third of the bar and will gutter three of the eight. That is
+   * harmless now — they come straight back when the noise stops, and only a
+   * sustained level above ~0.94 can finish the job — but if the room is loud,
+   * raising meterFullScaleRms is the one knob that fixes it.
    * ---------------------------------------------------------------- */
   // These three MUST stay false. Echo cancellation, noise suppression and
   // auto gain control exist to remove steady broadband noise — which is
@@ -133,28 +144,18 @@ export const candleConfig = {
   },
 
   meterFullScaleRms: 0.15, // loudness that fills the meter completely
-  blowLevelThreshold: 0.5, // meter must be above this fraction…
-  blowSustainMs: 2000, // …for this long. Two seconds is a real breath;
-  // drop it to ~1200 if it feels like a chore.
-  blowCooldownMs: 900, // ignore further blows for this long afterwards
-  meterSmoothing: 0.72, // 0 = jumpy, 0.9 = very laggy
+  // 0 = jumpy, 0.9 = very laggy. This one is doing more work than it looks:
+  // it smooths the bar AND the candle count, so a value that is too low makes
+  // the last candle flicker in and out on a steady breath.
+  meterSmoothing: 0.82,
 
-  // When the meter drops back below half, the two-second hold drains this many
-  // times faster than it filled. 2 forgives a single ragged frame or a tiny
-  // gap; it will NOT forgive someone who puffs rhythmically instead of blowing
-  // one continuous breath — they drain as fast as they fill and never reach
-  // two seconds. If she struggles, drop this to 0.5 (a dip then costs only a
-  // quarter of its own length) or to 0 to make the hold never drain at all.
-  holdDecayRate: 2,
-
-  // Optional extra guard, OFF by default. A blow is a broadband rush of air
-  // with its energy piled up below ~500 Hz, while shouting and clapping put
-  // plenty above it. If the candles start going out while people are talking
-  // and laughing over the top of her, set this to true and the detector will
-  // additionally require most of the energy to be in the low band.
-  requireLowBand: false,
-  blowLowBandHz: 500,
-  blowLowRatio: 0.55,
+  // How far the bar has to fall before a candle that has just gone out is
+  // allowed to come back, as a fraction of one candle's share of the meter
+  // (1/8 of the bar here). Without this deadband, a level sitting exactly on a
+  // boundary puts the same candle out and relights it every frame. 0.4 leaves
+  // candle one coming back at ~1% of the bar, so "the bar goes down to zero,
+  // they all relight" still reads as true. Raise it if they still flicker.
+  candleHysteresis: 0.4,
 };
 
 /**
