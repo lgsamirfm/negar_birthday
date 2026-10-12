@@ -23,6 +23,10 @@
  *             model spins in place instead of wobbling around an off-centre
  *             origin. Set false to keep the file's own origin.
  *   visible   set false to keep the entry here without rendering it
+ *   candles   true to light this model's candles and let her blow them out.
+ *             Only meaningful for a model that actually has flame geometry;
+ *             the node-name pattern and every other setting live in
+ *             src/candleConfig.js. Leave it out for no candles at all.
  *   narrow    optional overrides used on small screens — see RESPONSIVE below
  *
  * ⚠️  THE WORLD IS SMALL — this is the part that trips everyone up.
@@ -125,10 +129,16 @@ export const heroModels = [
   {
     id: "strawberry-cake",
     src: "/strawberry_cake.glb",
-    position: [0, 0, 0],
+    position: [0, 0.07, 0],
     scale: 7,
     rotation: [0, 0, 0],
     spin: 0.4,
+    // Blow-out the candles. Opt-in and optional: delete this line and the cake
+    // renders exactly as it did before. The .glb already contains 8 candles
+    // (pCylinder95…102) and 8 flames (pCone1…8), so this needs no extra file.
+    // Every tunable — flame size, light brightness, flicker, blow sensitivity —
+    // lives in src/candleConfig.js.
+    candles: true,
   },
   // {
   //   id: "balloon-dog",
@@ -141,7 +151,16 @@ export const heroModels = [
   {
     id: "balloon",
     src: "/balloon.glb",
-    position: [0.3, 0, 0],
+    position: [0.3, 0.05, 0],
+    scale: 0.4,
+    rotation: [0, 0, 0],
+    spin: 0,
+    // narrow: { position: [0.2, 0.05, 0.05], scale: 0.34 },
+  },
+  {
+    id: "blue-balloon",
+    src: "/blue_balloon.glb",
+    position: [-0.25, 0.05, 0],
     scale: 0.4,
     rotation: [0, 0, 0],
     spin: 0,
@@ -150,7 +169,7 @@ export const heroModels = [
   {
     id: "gift-box",
     src: "/gift_box.glb",
-    position: [-0.2, 0, 0.36],
+    position: [-0.2, 0.07, 0.36],
     scale: 0.07,
     rotation: [0, 0, 0],
     spin: 0,

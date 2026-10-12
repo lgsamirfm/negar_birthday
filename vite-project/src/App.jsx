@@ -78,7 +78,7 @@ function App() {
     },
     { 
       id: 3, 
-      user: "𝐓𝐡𝐞𝐅𝐫𝐞𝐚𝐤.", 
+      user: ".𝐓𝐡𝐞𝐅𝐫𝐞𝐚𝐤", 
       profileImage: "thefreak.jpg",
       avatarGradient: "from-amber-400 to-orange-500", 
       text: `زادروزت خجسته دختر ناناز 🤍 
