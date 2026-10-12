@@ -26,6 +26,180 @@ function UserAvatar({ src, user, gradient }) {
   );
 }
 
+/* ------------------------------------------------------------------ *
+ * ۲۵ مهر — everything else that shares this date
+ *
+ * One entry per card, in chronological order. To add or reorder one, just
+ * move its object in DAY_EVENTS; nothing else needs to change.
+ *
+ * IMAGES ARE OPTIONAL AND NOT IN THE REPO YET. Each card looks for its file
+ * in public/events/ — create that folder and drop them in with these names:
+ *
+ *   public/events/eminem.jpg
+ *   public/events/poverty-day.jpg
+ *   public/events/hung-up.jpg
+ *   public/events/bully.jpg
+ *   public/events/black-phone-2.jpg
+ *
+ * Until a file exists (or if it fails to load) the card shows the soft
+ * gradient placeholder with its category on it instead, so the section never
+ * looks broken. Set `image: ""` on an entry to keep the placeholder on
+ * purpose. A portrait crop works best — the box is tall and narrow and
+ * `object-cover` fills it from any aspect ratio.
+ * ------------------------------------------------------------------ */
+const DAY_EVENTS = [
+  {
+    id: "eminem",
+    category: "شخصیت",
+    title: "امینم",
+    latin: "Eminem",
+    year: 1972,
+    image: "/events/eminem.jpg",
+    imageAlt: "پرتره‌ی امینم",
+    text: "مارشال بروس متر سوم تو سنت‌جوزفِ میسوری به دنیا اومد؛ اسم هنری‌اش همون دو حرف اول اسم و فامیل خودشه. سال‌ها بعد با ترانه‌ی Lose Yourself از فیلم هشت مایل، اولین هنرمند هیپ‌هاپ شد که اسکار بهترین ترانه‌ی اصلی رو می‌بره.",
+  },
+  {
+    id: "poverty-day",
+    category: "روز جهانی",
+    title: "روز جهانی ریشه‌کنی فقر",
+    latin: "",
+    year: 1987,
+    image: "/events/poverty-day.jpg",
+    imageAlt: "سنگ یادبود روز جهانی ریشه‌کنی فقر در میدان تروکادروی پاریس",
+    text: "هفدهم اکتبر ۱۹۸۷ صد هزار نفر تو میدان تروکادروی پاریس جمع شدن تا به قربانی‌های فقر، گرسنگی و خشونت ادای احترام کنن. ژوزف رسینسکی همون‌جا سنگ یادبودی رو رونمایی کرد که روش نوشته: هرجا زن و مردی به فقر مطلق محکوم باشه، حقوق بشر نقض شده. سازمان ملل سال ۱۹۹۲ این روز رو به رسمیت شناخت.",
+  },
+  {
+    id: "hung-up",
+    category: "موسیقی",
+    title: "هانگ آپ",
+    latin: "Madonna — Hung Up",
+    year: 2005,
+    image: "/events/hung-up.jpg",
+    imageAlt: "جلد تک‌آهنگ هانگ آپ از مدونا",
+    text: "تک‌آهنگ اول آلبوم اعتراف‌ها روی زمینِ رقص، که رو ملودی Gimme! Gimme! Gimme! گروه آبا ساخته شده. مدونا برای گرفتن اجازه‌اش شخصاً به بنی آندرسون و بیورن اولویوس نامه نوشت. ترانه تو ۴۱ کشور شماره‌ی یک شد و بیلبورد اون رو موفق‌ترین ترانه‌ی دنس دهه نامید.",
+  },
+  {
+    id: "bully",
+    category: "بازی ویدیویی",
+    title: "بالی",
+    latin: "Bully",
+    year: 2006,
+    image: "/events/bully.jpg",
+    imageAlt: "کاور بازی بالی",
+    text: "ساخته‌ی راک‌استار ونکوور برای پلی‌استیشن ۲، که تو اروپا با اسم Canis Canem Edit منتشر شد. جیمی هاپکینزِ پونزده‌ساله که از هفت مدرسه اخراج شده، حالا تو مدرسه‌ی شبانه‌روزی بول‌ورث باید بین زورگوها، خرخون‌ها، پولدارها و ورزشکارها راه خودش رو پیدا کنه.",
+  },
+  {
+    id: "black-phone-2",
+    category: "فیلم",
+    title: "تلفن سیاه ۲",
+    latin: "Black Phone 2",
+    year: 2025,
+    image: "/events/black-phone-2.jpg",
+    imageAlt: "پوستر فیلم تلفن سیاه ۲",
+    text: "دنباله‌ی فیلم تلفن سیاه، باز هم با کارگردانی اسکات دریکسون و محصول بلوم‌هاوس و یونیورسال. ایتن هاوک تو نقش گِرَبر برگشته، میسون تیمز دوباره فینی رو بازی می‌کنه و مادلین مک‌گرا هم تو نقش گوِن همراهشونه.",
+  },
+];
+
+// Persian digits with no thousands separator: «۱۹۷۲» rather than the «۱٬۹۷۲»
+// the default fa-IR formatter produces, which reads like a count of things.
+const YEAR_FA = new Intl.NumberFormat("fa-IR", { useGrouping: false });
+
+// Same shape as UserAvatar below: try the file, fall back quietly if it is not
+// there. A failed <img> is not proof of a missing file on its own, but here
+// nothing else can go wrong — these are local paths with no retry to attempt.
+function EventImage({ src, alt, label }) {
+  const [missing, setMissing] = useState(!src);
+
+  return (
+    <div className="w-24 flex-shrink-0 self-stretch overflow-hidden bg-gradient-to-br from-rose-100 via-purple-100 to-amber-100 sm:w-32 md:w-40">
+      {!missing ? (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          onError={() => setMissing(true)}
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center px-2 text-center">
+          <span className="text-[11px] font-black leading-relaxed text-rose-400/70">
+            {label}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Between the hero and the messages. Cards match the ones below them exactly —
+// same surface, border, shadow and hover lift — so the page reads as one list
+// rather than two sections bolted together.
+function DayEvents() {
+  return (
+    <section className="max-w-4xl mx-auto px-4 pt-4 pb-14">
+      <Reveal>
+        <div className="mb-6 flex flex-col items-center gap-3 text-center">
+          <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-600 shadow-sm">
+            ۲۵ مهر · ۱۷ اکتبر
+          </span>
+
+          <h2 className="bg-gradient-to-r from-purple-600 via-rose-500 to-amber-500 bg-clip-text pb-1 text-2xl font-black text-transparent drop-shadow-sm sm:text-3xl">
+            اتفاق‌های این روز
+          </h2>
+
+          <p className="max-w-md text-sm font-medium leading-loose text-gray-500 sm:text-base">
+            پنج اتفاق که همه‌شون تو هفدهم اکتبر افتادن — از تولد یک رپر تا یک
+            روز جهانی.
+          </p>
+        </div>
+      </Reveal>
+
+      <div className="flex flex-col gap-4">
+        {DAY_EVENTS.map((event, index) => (
+          <Reveal key={event.id} delay={Math.min(index, 4) * 90}>
+            <article className="group flex overflow-hidden rounded-3xl border border-rose-100/50 bg-white/70 text-right shadow-[0_4px_20px_-4px_rgba(244,63,94,0.06)] backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-4px_rgba(244,63,94,0.12)]">
+              <EventImage
+                src={event.image}
+                alt={event.imageAlt}
+                label={event.category}
+              />
+
+              {/* min-w-0 so a long unbroken title cannot force the card wider
+                  than the page — a flex item's default min-width is auto. */}
+              <div className="flex min-w-0 flex-col gap-2 p-5 sm:p-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[11px] font-bold text-rose-600 shadow-sm">
+                    {event.category}
+                  </span>
+                  <span className="text-[11px] font-black text-gray-400">
+                    {YEAR_FA.format(event.year)}
+                  </span>
+                </div>
+
+                <h3 className="text-base font-black text-gray-800 sm:text-lg">
+                  {event.title}
+                </h3>
+
+                {/* dir="ltr" keeps a Latin name from being reordered by the
+                    page's RTL flow; text-right lines it up under the title. */}
+                {event.latin && (
+                  <p dir="ltr" className="text-right text-xs font-semibold text-gray-400">
+                    {event.latin}
+                  </p>
+                )}
+
+                <p className="text-sm font-normal leading-loose text-gray-600">
+                  {event.text}
+                </p>
+              </div>
+            </article>
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // End-of-page call to action leading to the video gallery
 function GalleryCta() {
   return (
@@ -120,6 +294,8 @@ function App() {
       className="min-h-screen bg-gradient-to-b from-[#FFFDF9] via-[#FFF5F5] to-[#FFF0FA] antialiased selection:bg-rose-200 selection:text-rose-900"
     >
       <Hero />
+
+      <DayEvents />
 
       <div className="max-w-4xl mx-auto px-4 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
