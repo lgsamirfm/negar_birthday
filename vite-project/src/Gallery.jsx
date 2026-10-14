@@ -16,16 +16,23 @@ import { navigate } from "./useHashRoute";
  *              Never claim the file is missing — retry instead.
  * ------------------------------------------------------------------ */
 const IDLE = "idle"; // not near the viewport yet, nothing requested
-const LOADING = "loading"; // thumbnail request in flight
-const READY = "ready"; // playable
+const LOADING = "loading"; // asking the server whether the file is there
+const READY = "ready"; // file confirmed present, so it can be opened
 const MISSING = "missing"; // confirmed absent on the server
 const FAILED = "failed"; // request aborted / blocked -> retryable
 
-// Previews are requested only as tiles approach the viewport, and never more
-// than a couple at a time. Asking for all 10 at once is what made download
-// managers pounce and the browser drop the last requests.
-const PREVIEW_STAGGER_MS = 120;
-const PREVIEW_STAGGER_MAX = 6;
+// A tile never downloads a video. All it does is ask the server whether the
+// file exists — a HEAD request, so headers and not one byte of footage — and
+// only when the tile gets near the viewport. The video itself is fetched when
+// she actually opens one, by the lightbox.
+//
+// That distinction is the whole point: with 10 tiles on screen, a <video> in
+// each one pulled metadata (and usually a first chunk) for all ten at once,
+// which is slow on a phone connection and pointless for the nine she did not
+// ask for. Probes are still staggered and still wait for the viewport, because
+// a burst of ten requests is what makes download managers pounce.
+const PROBE_STAGGER_MS = 120;
+const PROBE_STAGGER_MAX = 6;
 const MAX_AUTO_RETRIES = 2;
 const RETRY_DELAY_MS = 800;
 
@@ -58,19 +65,6 @@ async function probeSource(src) {
   } catch {
     return "unknown"; // aborted, offline, blocked -> retryable
   }
-}
-
-/**
- * Preview URL: "#t=0.1" makes browsers (Safari especially) paint the first
- * frame as a thumbnail without a poster image, and a cache-busting query on
- * retries makes sure a re-attempt is a genuinely fresh request.
- */
-function previewUrl(src, attempt) {
-  const hasFragment = src.includes("#");
-  let url = src;
-  if (attempt > 0 && !hasFragment) url += `${src.includes("?") ? "&" : "?"}retry=${attempt}`;
-  if (!hasFragment) url += "#t=0.1";
-  return url;
 }
 
 /* ------------------------------------------------------------------ *
@@ -152,7 +146,10 @@ const SOFT_GRADIENT = "bg-gradient-to-br from-purple-100/70 via-rose-50/80 to-am
  * One grid tile
  * ------------------------------------------------------------------ */
 function VideoTile({ video, index, total, status, onStatus, onOpen }) {
+  // Bumped to re-run the probe below. There is no cache-busting URL to change
+  // any more, so the number exists purely to re-trigger the effect.
   const [attempt, setAttempt] = useState(0);
+  const [posterFailed, setPosterFailed] = useState(false);
   const tileRef = useRef(null);
   const attemptsRef = useRef(0);
   const statusRef = useRef(IDLE);
@@ -181,9 +178,8 @@ function VideoTile({ video, index, total, status, onStatus, onOpen }) {
     [index, onStatus],
   );
 
-  // Kick off a re-attempt: a new attempt number gives the <video> a new key
-  // and a cache-busted URL, so it is a genuinely fresh request. Both updates
-  // land in the same render, which means exactly one new request.
+  // Kick off a re-attempt: bumping the attempt number re-runs the probe effect
+  // below, which is a genuinely fresh request (it is sent with cache: no-store).
   const reload = useCallback(
     (delay) => {
       if (!aliveRef.current) return;
@@ -204,12 +200,12 @@ function VideoTile({ video, index, total, status, onStatus, onOpen }) {
     [settle],
   );
 
-  // Only ask for the preview once the tile is close to the viewport, and
-  // stagger the requests so they never arrive in one burst.
+  // Only ask about the file once the tile is close to the viewport, and
+  // stagger the probes so they never arrive in one burst.
   useEffect(() => {
     if (status !== IDLE) return undefined;
 
-    const delay = Math.min(index, PREVIEW_STAGGER_MAX) * PREVIEW_STAGGER_MS;
+    const delay = Math.min(index, PROBE_STAGGER_MAX) * PROBE_STAGGER_MS;
 
     if (typeof IntersectionObserver === "undefined") {
       const timer = window.setTimeout(() => settle(LOADING), delay);
@@ -233,34 +229,43 @@ function VideoTile({ video, index, total, status, onStatus, onOpen }) {
     return () => observer.disconnect();
   }, [index, settle, status]);
 
-  const handleError = useCallback(async () => {
-    // Ignore stragglers from an element we already replaced.
-    if (!aliveRef.current || statusRef.current === MISSING || statusRef.current === FAILED) return;
+  // Ask the server whether the file is there. Headers only — this request
+  // carries no video data, which is the entire point of the exercise.
+  useEffect(() => {
+    if (status !== LOADING) return undefined;
 
-    const verdict = await probeSource(video.src);
-    if (!aliveRef.current) return;
+    let cancelled = false;
 
-    if (verdict === "missing") {
-      settle(MISSING);
-      return;
-    }
+    (async () => {
+      const verdict = await probeSource(video.src);
+      if (cancelled || !aliveRef.current) return;
 
-    // The file exists (or the network couldn't tell us). Something interrupted
-    // the request, so retry a couple of times before offering a manual retry.
-    if (attemptsRef.current < MAX_AUTO_RETRIES) {
-      attemptsRef.current += 1;
-      reload(RETRY_DELAY_MS);
-      return;
-    }
+      if (verdict === "exists") {
+        attemptsRef.current = 0;
+        settle(READY);
+        return;
+      }
 
-    settle(FAILED);
-  }, [reload, settle, video.src]);
+      if (verdict === "missing") {
+        settle(MISSING);
+        return;
+      }
 
-  const handleLoaded = useCallback(() => {
-    if (!aliveRef.current || statusRef.current === READY) return;
-    attemptsRef.current = 0;
-    settle(READY);
-  }, [settle]);
+      // Inconclusive — an aborted or blocked request, which is not the same as
+      // a missing file. Retry a couple of times before offering a manual one.
+      if (attemptsRef.current < MAX_AUTO_RETRIES) {
+        attemptsRef.current += 1;
+        reload(RETRY_DELAY_MS);
+        return;
+      }
+
+      settle(FAILED);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt, reload, settle, status, video.src]);
 
   const handleRetryClick = useCallback(() => {
     attemptsRef.current = 0;
@@ -297,18 +302,16 @@ function VideoTile({ video, index, total, status, onStatus, onOpen }) {
       }`}
     >
       <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-purple-100 via-rose-50 to-amber-100">
-        {(status === LOADING || status === READY) && (
-          <video
-            key={`${video.id}-${attempt}`}
-            src={previewUrl(video.src, attempt)}
-            poster={video.poster}
-            muted
-            playsInline
-            preload="metadata"
-            tabIndex={-1}
-            onLoadedData={handleLoaded}
-            onLoadedMetadata={handleLoaded}
-            onError={handleError}
+        {/* Deliberately no <video> in this tile. A still image is the only
+            thing that could be shown here for free, and only if one exists —
+            see the `poster` note in public/videos/README.md. Without a poster
+            the gradient and the play glyph below stand in. */}
+        {status === READY && video.poster && !posterFailed && (
+          <img
+            src={video.poster}
+            alt=""
+            loading="lazy"
+            onError={() => setPosterFailed(true)}
             className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
           />
         )}
@@ -343,15 +346,18 @@ function VideoTile({ video, index, total, status, onStatus, onOpen }) {
 
         {isOpenable && (
           <>
-            {/* Scrim keeps the caption readable over bright footage */}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-rose-950/35 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            {/* Scrim keeps the caption readable over a poster image */}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-rose-950/30 via-transparent to-transparent" />
 
             <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-white/85 px-2.5 py-1 text-[11px] font-bold text-rose-500 shadow-sm backdrop-blur-sm">
               {toFa(index + 1)} / {toFa(total)}
             </span>
 
+            {/* Always on, not a hover reveal: with no footage in the tile this
+                glyph is the only thing separating "ready to play" from "still
+                checking", so it cannot wait for a mouse. */}
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <span className="flex h-14 w-14 scale-90 items-center justify-center rounded-full bg-white/85 pl-1 text-rose-500 opacity-0 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-all duration-300 group-hover:scale-100 group-hover:opacity-100">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/85 pl-1 text-rose-500 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.35)] backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
                 <PlayIcon className="h-5 w-5" />
               </span>
             </span>

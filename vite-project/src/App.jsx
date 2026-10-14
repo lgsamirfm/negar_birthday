@@ -79,28 +79,39 @@ function App() {
     { 
       id: 3, 
       user: ".𝐓𝐡𝐞𝐅𝐫𝐞𝐚𝐤", 
-      profileImage: "thefreak.jpg",
-      avatarGradient: "from-amber-400 to-orange-500", 
+      profileImage: "thefreak.jpg", // Letter fallback working example
+      avatarGradient: "from-fuchsia-500 to-purple-600", 
       text: `زادروزت خجسته دختر ناناز 🤍 
       امیدوارم سال خوشگل‌تری داشته باشی`
-
     },
     { 
       id: 4, 
-      user: "David_Z", 
-      profileImage: "https://unsplash.com",
-      avatarGradient: "from-blue-400 to-indigo-500", 
-      text: "یک سال دیگه از زندگی زیبات گذشت، به سلامتی سال جدید! مشتاقم که به‌زودی این روز رو در کنار هم جشن بگیریم." 
+      user: "Naku", 
+      profileImage: "naku.jpg",
+      avatarGradient: "from-emerald-400 to-teal-500", 
+      text: "میو نگار تولدت مبارکهههه ✨🥳 انشاالله همه ارزو هات براورده بشه به این مناسبت و خوشحال باشیییی" 
     },
     { 
       id: 5, 
-      user: "Elena_R", 
-      profileImage: "", // Letter fallback working example
-      avatarGradient: "from-fuchsia-500 to-purple-600", 
-      text: "تولدت مبارک! از فرسنگ‌ها دورتر گرم‌ترین آغوش‌ها، انرژی‌های مثبت و عشق بی‌پایانم رو برات می‌فرستم." 
+      user: "Midnight", 
+      profileImage: "midnight.jpg",
+      avatarGradient: "from-amber-400 to-orange-500", 
+      text: `نگار جان عزیزم
+امیدوارم که همیشه خودت و خانوادت و دوستات و عزیزانت حالتون عالی باشه و سالم و سلامت باشین به دور از هر بلا، زندگی به کامت باشه و به تمام ارزو های قشنگت هم برسی
+تولدت مبارک💕💕`
+
     },
     { 
       id: 6, 
+      user: "M", 
+      profileImage: "https://unsplash.com",
+      avatarGradient: "from-blue-400 to-indigo-500", 
+      text: `الان ۲۱ ساله که از نیگا بودنت میگذره و امیدوارم ۱۰۰ سال دیگه نیگا بمونی؛ همچنین امیدوارم که ۲۲ سالگیتو بدون آخوند جشن بگیری.
+      زادروزت رو به خودت و تموم نیگاها تبریک میگم.💚💐` 
+    },
+    
+    { 
+      id: 7, 
       user: "Tom_W", 
       profileImage: "https://unsplash.com",
       avatarGradient: "from-cyan-400 to-blue-500", 

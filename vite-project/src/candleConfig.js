@@ -134,7 +134,7 @@ export const candleConfig = {
 
   meterFullScaleRms: 0.15, // loudness that fills the meter completely
   blowLevelThreshold: 0.5, // meter must be above this fraction…
-  blowSustainMs: 2000, // …for this long. Two seconds is a real breath;
+  blowSustainMs: 1500, // …for this long. Two seconds is a real breath;
   // drop it to ~1200 if it feels like a chore.
   blowCooldownMs: 900, // ignore further blows for this long afterwards
   meterSmoothing: 0.72, // 0 = jumpy, 0.9 = very laggy
