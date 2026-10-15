@@ -625,7 +625,7 @@ function Gallery() {
             className={`group flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold text-gray-700 transition-all duration-300 hover:-translate-y-0.5 hover:text-rose-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 ${CARD_SURFACE}`}
           >
             <ArrowLeftIcon className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5" />
-            <span>Back</span>
+            <span>برگرد</span>
           </button>
 
           <div className="flex flex-col items-end">

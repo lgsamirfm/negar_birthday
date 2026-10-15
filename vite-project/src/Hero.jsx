@@ -399,7 +399,7 @@ function CandleControls({ micStatus, candlesOut, blowing, hasMic, meterRef, hold
                   </div>
                 </div>
 
-                <p className="text-xs font-bold text-rose-400">فوت کن! 💨</p>
+                <p className="text-xs font-bold text-rose-400">فوت کن!</p>
               </>
             )}
 
@@ -412,7 +412,7 @@ function CandleControls({ micStatus, candlesOut, blowing, hasMic, meterRef, hold
             {!listening && micStatus !== "requesting" && !unavailable && (
               <>
                 <button type="button" onClick={onStartMic} className={BUTTON_PRIMARY}>
-                  <span aria-hidden="true">🎂</span>
+                  {/* <span aria-hidden="true"></span> */}
                   <span>شمع‌ها رو فوت کن</span>
                 </button>
 
@@ -423,7 +423,7 @@ function CandleControls({ micStatus, candlesOut, blowing, hasMic, meterRef, hold
                   </p>
                 ) : (
                   <p className="text-[11px] font-medium text-gray-400">
-                    نفس عمیق بکش و دو ثانیه فوت کن 💨
+                    اول آرزو کن بعد فوت کن
                   </p>
                 )}
               </>
@@ -502,13 +502,13 @@ function Hero() {
           read as one motion rather than a slideshow. */}
       <div className="relative z-10 max-w-xl mx-auto flex flex-col items-center gap-3 pt-6 pb-2">
         <span className="rise-in [animation-delay:80ms] px-3 py-1 bg-rose-100 text-rose-600 rounded-full text-xs font-bold shadow-sm">
-          جشن تولد 🎉
+          تولددددددددددد
         </span>
         <h1 className="rise-in [animation-delay:200ms] text-4xl sm:text-5xl font-black bg-gradient-to-r from-brand-bloom via-brand-dusk to-brand-plum bg-clip-text text-transparent drop-shadow-sm pb-1">
-          تولدت مبارک، نگار!
+          تولدت مبارک نگااااااار
         </h1>
         <p className="rise-in [animation-delay:320ms] text-gray-500 font-medium text-sm sm:text-base max-w-md leading-loose">
-          یک گوشه‌ی دنج دیجیتال، فقط برای جشن گرفتن تو.
+        بیا شمع هارو فوت کن تا صد سال زنده باشی :)
         </p>
       </div>
 
