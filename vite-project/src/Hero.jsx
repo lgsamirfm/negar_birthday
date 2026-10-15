@@ -2,7 +2,7 @@ import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useRef, u
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Center, Clone, useGLTF } from "@react-three/drei";
 import { heroFit, heroModels, heroSceneDebug } from "./heroModels";
-import CandleFlames from "./CandleFlames";
+import CandleFlames from "./candleFlames";
 import { blowOutAllCandles, createCandleState, relightCandles } from "./candleState";
 import { useBlowDetection } from "./useBlowDetection";
 import { micIsAvailable } from "./candleConfig";
